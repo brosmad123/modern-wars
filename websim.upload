@@ -1,0 +1,12 @@
+// Restart music with new track
+    if (bgMusicSource) {
+        bgMusicSource.stop();
+        bgMusicSource = null;
+    }
+    initAudio();
+    loadingOverlay.style.display = 'none';
+    alert("Custom soundtrack applied and saved!");
+
+    soundEngine.playNext();
+    loadingOverlay.style.display = 'none';
+    alert("Custom soundtrack applied and saved!");

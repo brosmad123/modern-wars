@@ -1,0 +1,11 @@
+if (bgMusicSource) {
+        bgMusicSource.stop();
+        bgMusicSource = null;
+    }
+    initAudio();
+    alert("Soundtrack reset to original.");
+});
+
+    soundEngine.playNext();
+    alert("Soundtrack reset to original.");
+});

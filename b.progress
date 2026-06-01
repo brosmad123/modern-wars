@@ -1,0 +1,2 @@
+gameState = 'WAR_OVER';
+playPeaceSound();

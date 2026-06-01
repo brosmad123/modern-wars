@@ -1,0 +1,179 @@
+this.musicGain.connect(this.ctx.destination);
+    this.ambianceGain.connect(this.ctx.destination);
+    this.sfxGain.connect(this.ctx.destination);
+    
+    this.playlist = bgMusicUrls;
+    this.currentIndex = -1;
+    this.musicSource = null;
+    this.ambianceSource = null;
+    this.buffers = new Map();
+    this.isMuted = false;
+    this.isLoading = false;
+    this.customTrackUrl = getCookie('mw_custom_track') || null;
+    
+    const savedVol = getCookie('mw_music_vol');
+    this.masterVolume = (savedVol !== '') ? parseFloat(savedVol) : 0.45;
+    this.musicGain.gain.setValueAtTime(this.masterVolume, this.ctx.currentTime);
+    this.ambianceGain.gain.setValueAtTime(0, this.ctx.currentTime);
+    this.sfxGain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+
+    this.sfxMap = {
+        explosion: explosionUrl,
+        click: clickUrl,
+        warStart: warStartUrl,
+        peace: peaceUrl,
+        warAmbiance: warAmbianceUrl
+    };
+}
+
+async resume() {
+    if (this.ctx.state === 'suspended') {
+        await this.ctx.resume();
+    }
+}
+
+async load(url) {
+    if (this.buffers.has(url)) return this.buffers.get(url);
+    try {
+        const response = await fetch(encodeURI(url));
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = await this.ctx.decodeAudioData(arrayBuffer);
+        this.buffers.set(url, buffer);
+        return buffer;
+    } catch (e) {
+        console.error(`SoundEngine load failed: ${url}`, e);
+        return null;
+    }
+}
+
+async init() {
+    await this.resume();
+    // Background load common UI sounds
+    this.load(this.sfxMap.click);
+    this.load(this.sfxMap.explosion);
+    this.load(this.sfxMap.warStart);
+    this.load(this.sfxMap.peace);
+    this.load(this.sfxMap.warAmbiance);
+    
+    if (!this.musicSource && !this.isLoading) {
+        await this.playNext();
+    }
+}
+
+async playNext() {
+    await this.resume();
+    this.stopMusic();
+    this.isLoading = true;
+    
+    let url;
+    if (this.customTrackUrl) {
+        url = this.customTrackUrl;
+    } else {
+        this.currentIndex = (this.currentIndex + 1) % this.playlist.length;
+        if (this.currentIndex === -1) this.currentIndex = Math.floor(Math.random() * this.playlist.length);
+        url = this.playlist[this.currentIndex];
+    }
+
+    const buffer = await this.load(url);
+    this.isLoading = false;
+    if (!buffer) {
+        this.playNext();
+        return;
+    }
+
+    this.musicSource = this.ctx.createBufferSource();
+    this.musicSource.buffer = buffer;
+    this.musicSource.connect(this.musicGain);
+    this.musicSource.onended = () => {
+        if (!this.isLoading) this.playNext();
+    };
+    this.musicSource.start(0);
+    console.log(`Satellite Sound System: Playing ${url}`);
+}
+
+stopMusic() {
+    if (this.musicSource) {
+        try {
+            this.musicSource.onended = null;
+            this.musicSource.stop();
+            this.musicSource.disconnect();
+        } catch(e) {}
+        this.musicSource = null;
+    }
+}
+
+async playSFX(key, options = {}) {
+    if (this.isMuted) return;
+    await this.resume();
+    const url = this.sfxMap[key];
+    if (!url) return;
+    const buffer = await this.load(url);
+    if (!buffer) return;
+
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
+    let lastNode = source;
+
+    if (options.filter) {
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(options.filter, this.ctx.currentTime);
+        lastNode.connect(filter);
+        lastNode = filter;
+    }
+
+    const gain = this.ctx.createGain();
+    const vol = options.volume || 0.5;
+    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + buffer.duration);
+    
+    lastNode.connect(gain);
+    gain.connect(this.sfxGain);
+    source.start(0);
+}
+
+async startAmbiance() {
+    await this.resume();
+    if (this.ambianceSource) return;
+    const buffer = await this.load(this.sfxMap.warAmbiance);
+    if (!buffer) return;
+
+    this.ambianceSource = this.ctx.createBufferSource();
+    this.ambianceSource.buffer = buffer;
+    this.ambianceSource.loop = true;
+    this.ambianceSource.connect(this.ambianceGain);
+    
+    this.ambianceGain.gain.setValueAtTime(0, this.ctx.currentTime);
+    this.ambianceGain.gain.linearRampToValueAtTime(0.05, this.ctx.currentTime + 2);
+    this.ambianceSource.start(0);
+}
+
+stopAmbiance() {
+    if (this.ambianceSource) {
+        const src = this.ambianceSource;
+        this.ambianceGain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 1.5);
+        setTimeout(() => {
+            try { src.stop(); src.disconnect(); } catch(e) {}
+        }, 1600);
+        this.ambianceSource = null;
+    }
+}
+
+setVolume(vol) {
+    this.masterVolume = vol;
+    if (!this.isMuted) {
+        this.musicGain.gain.setTargetAtTime(vol, this.ctx.currentTime, 0.05);
+    }
+}
+
+toggleMute() {
+    this.isMuted = !this.isMuted;
+    const targetMusic = this.isMuted ? 0 : this.masterVolume;
+    const targetAmbiance = this.isMuted ? 0 : 0.05;
+    this.musicGain.gain.setTargetAtTime(targetMusic, this.ctx.currentTime, 0.1);
+    if (this.ambianceSource) {
+        this.ambianceGain.gain.setTargetAtTime(targetAmbiance, this.ctx.currentTime, 0.1);
+    }
+    return this.isMuted;
+}

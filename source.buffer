@@ -1,0 +1,33 @@
+// Create a filter but make it less aggressive (higher cutoff)
+const filterNode = audioCtx.createBiquadFilter();
+filterNode.type = 'lowpass';
+filterNode.frequency.setValueAtTime(1800, audioCtx.currentTime); 
+filterNode.Q.setValueAtTime(1, audioCtx.currentTime);
+
+const gainNode = audioCtx.createGain();
+const startVol = 0.45; // Significantly increased volume for clarity
+gainNode.gain.setValueAtTime(startVol, audioCtx.currentTime);
+// Linear ramp is often more predictable for short samples
+gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + explosionBuffer.duration);
+
+source.connect(filterNode);
+filterNode.connect(gainNode);
+gainNode.connect(audioCtx.destination);
+source.start(0);
+
+// Create a filter but make it less aggressive (higher cutoff)
+const filterNode = audioCtx.createBiquadFilter();
+filterNode.type = 'lowpass';
+filterNode.frequency.setValueAtTime(1800, audioCtx.currentTime); 
+filterNode.Q.setValueAtTime(1, audioCtx.currentTime);
+
+const gainNode = audioCtx.createGain();
+const startVol = 0.45; // Significantly increased volume for clarity
+gainNode.gain.setValueAtTime(startVol, audioCtx.currentTime);
+// Linear ramp is often more predictable for short samples
+gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + explosionBuffer.duration);
+
+source.connect(filterNode);
+filterNode.connect(gainNode);
+gainNode.connect(audioCtx.destination);
+source.start(0);

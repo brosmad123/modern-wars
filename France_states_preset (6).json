@@ -1,0 +1,7 @@
+{
+  "title": "France States Preset",
+  "year": 2022,
+  "description": "Preset containing France internal state divisions for regional scenarios (import into editor).",
+  "source": "local",
+  "notes": "Use in Editor -> Import Country From Scenario to add French departments or states."
+}

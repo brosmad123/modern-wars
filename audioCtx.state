@@ -1,0 +1,147 @@
+if (isAudioLoading) return;
+
+const needsMusic = !bgMusicSource;
+const needsBuffers = !explosionBuffer || !clickBuffer || !warStartBuffer || !peaceBuffer || !warAmbianceBuffer;
+
+if (!needsMusic && !needsBuffers) return;
+
+isAudioLoading = true;
+
+const load = async (url) => {
+    try {
+        // Encode URI to handle spaces and non-ASCII characters in asset paths
+        const response = await fetch(encodeURI(url));
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const arrayBuffer = await response.arrayBuffer();
+        return await new Promise((resolve, reject) => {
+            audioCtx.decodeAudioData(arrayBuffer, resolve, (err) => {
+                console.warn(`Decoding failure for ${url}:`, err);
+                reject(err);
+            });
+        });
+    } catch (e) {
+        console.warn(`Audio Force-Load Error: Failed for ${url}`, e);
+        return null;
+    }
+};
+
+// Helper to start playing a specific background track index
+const playBackgroundTrack = async (index) => {
+    // Force resume on every track change attempt to stay ahead of browser suspension
+    if (audioCtx.state === 'suspended') {
+        try { await audioCtx.resume(); } catch(e) {}
+    }
+
+    let url;
+    if (customTrackUrl) {
+        url = customTrackUrl;
+    } else {
+        if (index == null || index < 0 || index >= bgMusicUrls.length) {
+            index = Math.floor(Math.random() * bgMusicUrls.length);
+        }
+        url = bgMusicUrls[index];
+    }
+
+    // Decode buffer if needed
+    if (!bgMusicBuffers[url]) {
+        const buf = await load(url);
+        if (!buf) {
+            // If a track fails, forcefully try the next one in the list immediately
+            console.warn(`Force-skipping broken track: ${url}`);
+            const nextIdx = (index + 1) % bgMusicUrls.length;
+            return playBackgroundTrack(nextIdx);
+        }
+        bgMusicBuffers[url] = buf;
+    }
+
+    // Stop any existing source to ensure only one plays
+    if (bgMusicSource) {
+        try { 
+            bgMusicSource.onended = null; 
+            bgMusicSource.stop(); 
+            bgMusicSource.disconnect();
+        } catch(e) {}
+        bgMusicSource = null;
+    }
+
+    bgMusicSource = audioCtx.createBufferSource();
+    bgMusicSource.buffer = bgMusicBuffers[url];
+    bgMusicSource.loop = false;
+
+    if (!bgMusicGain) {
+        bgMusicGain = audioCtx.createGain();
+        const savedVol = getCookie('mw_music_vol');
+        const initialVol = savedVol !== '' ? parseFloat(savedVol) : 0.45; // Increased default volume
+        bgMusicGain.gain.setValueAtTime(initialVol, audioCtx.currentTime);
+
+        const slider = document.getElementById('music-volume-slider');
+        const valLabel = document.getElementById('music-vol-val');
+        if (slider && valLabel) {
+            slider.value = initialVol;
+            valLabel.innerText = Math.round(initialVol * 100) + '%';
+        }
+
+        bgMusicGain.connect(audioCtx.destination);
+    }
+
+    bgMusicSource.connect(bgMusicGain);
+    
+    try {
+        bgMusicSource.start(0);
+        console.log(`Now playing: ${url}`);
+    } catch(e) {
+        console.warn("Force play failed at start phase:", e);
+    }
+
+    currentBgTrackIndex = index;
+
+    // When track ends, pick a different random one
+    bgMusicSource.onended = () => {
+        bgMusicSource = null;
+        if (customTrackUrl) {
+            playBackgroundTrack(0); // Loop custom track
+            return;
+        }
+        if (!bgMusicUrls.length) return;
+        let next = Math.floor(Math.random() * bgMusicUrls.length);
+        if (bgMusicUrls.length > 1 && next === currentBgTrackIndex) {
+            next = (next + 1) % bgMusicUrls.length;
+        }
+        playBackgroundTrack(next);
+    };
+};
+
+// Prioritize loading and playing background music immediately
+const startMusic = async () => {
+    if (bgMusicSource || isAudioLoading) return;
+    // Pick a random starting track
+    const startIndex = Math.floor(Math.random() * bgMusicUrls.length);
+    await playBackgroundTrack(startIndex);
+};
+
+// Fire off music load/play and other sounds in parallel
+const effectTasks = [
+    load(explosionUrl).then(b => explosionBuffer = b || explosionBuffer),
+    (!clickBuffer ? load(clickUrl).then(b => clickBuffer = b || clickBuffer) : Promise.resolve()),
+    load(warStartUrl).then(b => warStartBuffer = b || warStartBuffer),
+    load(peaceUrl).then(b => peaceBuffer = b || peaceBuffer),
+    load(warAmbianceUrl).then(b => warAmbianceBuffer = b || warAmbianceBuffer)
+];
+
+try {
+    await Promise.all([startMusic(), ...effectTasks]);
+} catch (e) {
+    console.error("Audio initialization error:", e);
+} finally {
+    isAudioLoading = false;
+}
+
+// Attempt to start OST on any interaction if not already playing
+if (!bgMusicSource && !isAudioLoading) {
+    initAudio();
+}
+
+const interactiveSelector = 'button, .menu-card, input, select, [role="button"], .side-header';
+if (e.target.closest(interactiveSelector)) {
+    playClickSound();
+}
