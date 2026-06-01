@@ -1,2 +1,0 @@
-# FjordsofNorway
-The site.
