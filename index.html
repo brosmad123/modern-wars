@@ -17,6 +17,137 @@
     </script>
 </head>
 <body>
+
+    <!-- PASSWORD SCREEN -->
+    <div id="password-screen" style="
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: #000;
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Playfair Display', Georgia, serif;
+    ">
+        <div style="
+            text-align: center;
+            padding: 50px 40px;
+            background: rgba(10,10,12,0.95);
+            border: 1px solid rgba(255,71,87,0.3);
+            border-radius: 4px;
+            box-shadow: 0 0 60px rgba(255,71,87,0.1), 0 40px 80px rgba(0,0,0,0.8);
+            max-width: 380px;
+            width: 90%;
+            animation: pwFadeIn 0.8s ease-out;
+        ">
+            <div style="
+                font-size: 11px;
+                letter-spacing: 4px;
+                color: #ff4757;
+                text-transform: uppercase;
+                margin-bottom: 10px;
+                font-family: monospace;
+            ">CLASSIFIED</div>
+            <h1 style="
+                font-size: 42px;
+                font-weight: 900;
+                color: #fff;
+                margin: 0 0 6px 0;
+                letter-spacing: -1px;
+                line-height: 1;
+            ">MODERN WARS</h1>
+            <div style="
+                font-size: 12px;
+                color: #444;
+                letter-spacing: 2px;
+                text-transform: uppercase;
+                margin-bottom: 36px;
+            ">Restricted Access</div>
+
+            <div style="position: relative; margin-bottom: 12px;">
+                <input id="pw-input" type="password" placeholder="Enter access code"
+                    style="
+                        width: 100%; padding: 14px 16px;
+                        background: rgba(255,255,255,0.04);
+                        border: 1px solid rgba(255,255,255,0.1);
+                        border-radius: 2px;
+                        color: #fff;
+                        font-size: 14px;
+                        font-family: monospace;
+                        letter-spacing: 2px;
+                        outline: none;
+                        box-sizing: border-box;
+                        transition: border-color 0.2s;
+                    "
+                    onkeydown="if(event.key==='Enter')checkPassword()"
+                    onfocus="this.style.borderColor='rgba(255,71,87,0.5)'"
+                    onblur="this.style.borderColor='rgba(255,255,255,0.1)'"
+                >
+            </div>
+
+            <div id="pw-error" style="
+                color: #ff4757;
+                font-size: 11px;
+                letter-spacing: 1px;
+                height: 16px;
+                margin-bottom: 12px;
+                font-family: monospace;
+            "></div>
+
+            <button onclick="checkPassword()" style="
+                width: 100%;
+                padding: 14px;
+                background: #ff4757;
+                color: #fff;
+                border: none;
+                border-radius: 2px;
+                font-size: 12px;
+                font-weight: 900;
+                letter-spacing: 3px;
+                text-transform: uppercase;
+                cursor: pointer;
+                transition: background 0.15s, transform 0.08s;
+                font-family: 'Playfair Display', Georgia, serif;
+            "
+            onmouseover="this.style.background='#e03041'"
+            onmouseout="this.style.background='#ff4757'"
+            onmousedown="this.style.transform='scale(0.98)'"
+            onmouseup="this.style.transform='scale(1)'">
+                ENTER
+            </button>
+        </div>
+    </div>
+
+    <style>
+        @keyframes pwFadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pwFadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; pointer-events: none; }
+        }
+    </style>
+
+    <script>
+        function checkPassword() {
+            const input = document.getElementById('pw-input');
+            const error = document.getElementById('pw-error');
+            if (input.value === 'Goodson123') {
+                const screen = document.getElementById('password-screen');
+                screen.style.animation = 'pwFadeOut 0.6s ease-out forwards';
+                setTimeout(() => screen.remove(), 600);
+            } else {
+                error.textContent = 'INCORRECT ACCESS CODE';
+                input.style.borderColor = '#ff4757';
+                input.value = '';
+                setTimeout(() => {
+                    error.textContent = '';
+                    input.style.borderColor = 'rgba(255,255,255,0.1)';
+                }, 2000);
+            }
+        }
+    </script>
+
     <div id="map"></div>
     
 
